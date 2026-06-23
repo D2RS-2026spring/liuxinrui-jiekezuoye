@@ -1,0 +1,157 @@
+---
+title: "生物量分析"
+---
+
+## 微生物绝对丰度
+
+本章节分析不同处理和生长阶段下土壤微生物的总绝对丰度变化。
+
+```{r}
+#| label: setup-loads
+#| message: false
+#| warning: false
+
+library(rstatix)
+library(ggplot2)
+library(agricolae)
+```
+
+```{r}
+#| label: load-loads-data
+
+taxonomy <- c('Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species')
+treatment <- c('Ctrl', '-N', '-P', '-K')
+stage <- c('D0', 'D1', 'D4', 'D7', 'D14', 'D28', 'D42', 'D60', 'D72')
+
+qmp_taxonomy_data <- read.csv('qmp_taxonomy_data.csv', check.names = FALSE)
+
+metadata <- read.csv('metadata.csv', row.names = 1)
+metadata$Treatment <- factor(metadata$Treatment, levels = treatment)
+metadata$Stage <- factor(metadata$Stage, levels = stage)
+
+# calculate total absolute abundance
+absolute_df <- data.frame(Value = colSums(qmp_taxonomy_data[!names(qmp_taxonomy_data) %in% taxonomy]))
+```
+
+### 散装土壤 (BS)
+
+```{r}
+#| label: bs-loads
+#| fig-cap: "散装土壤微生物绝对丰度"
+#| fig-width: 4
+#| fig-height: 5
+
+group_bs <- metadata[metadata$Compartment == 'BS', ]
+tmp_df <- merge(group_bs, absolute_df, by = 'row.names', all.x = TRUE)
+
+dunn_res <- dunn_test(tmp_df, Value ~ Treatment, p.adjust.method = 'fdr')
+dunn_res_df <- data.frame(dunn_res[-1])
+
+for (n in 1:nrow(dunn_res_df)) {
+    if (dunn_res_df$p.adj[n] <= 0.001)
+        dunn_res_df$p.adj.signif[n] <- '***'
+    else if (dunn_res_df$p.adj[n] <= 0.01)
+        dunn_res_df$p.adj.signif[n] <- '**'
+    else if (dunn_res_df$p.adj[n] <= 0.05)
+        dunn_res_df$p.adj.signif[n] <- '*'
+    else
+        dunn_res_df$p.adj.signif[n] <- ''
+}
+
+Label <- c('', dunn_res_df$p.adj.signif[1:3])
+
+tmp_df$Value <- log10(tmp_df$Value)
+ggplot(tmp_df, aes(x = Treatment, y = Value, color = Treatment)) +
+    geom_boxplot(width = 0.68, outlier.shape = NA) +
+    geom_point(size = 1) +
+    labs(x = '', y = 'Absolute abundance (log10copies g-1)') +
+    facet_grid(~ Compartment, scales = 'free_x', switch = 'x') +
+    theme_bw() +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          legend.position = 'none')
+```
+
+### 根际 (R)
+
+```{r}
+#| label: r-loads
+#| fig-cap: "根际微生物绝对丰度随时间变化"
+#| fig-width: 10
+#| fig-height: 5
+
+group_r <- metadata[metadata$Compartment == 'R', ]
+tmp_df <- merge(group_r, absolute_df, by = 'row.names', all.x = TRUE)
+
+dunn_res <- dunn_test(tmp_df, Value ~ Stage, p.adjust.method = 'fdr')
+dunn_res_df <- data.frame(dunn_res[-1])
+
+mean_df <- aggregate(tmp_df['Value'], by = list(Group = tmp_df$Stage), FUN = mean)
+n <- nrow(mean_df)
+pvalue_df <- matrix(1, ncol = n, nrow = n)
+k <- 0
+for (i in 1:(n - 1)) {
+    for (z in (i + 1):n) {
+        k <- k + 1
+        pvalue_df[i, z] <- dunn_res_df$p.adj[k]
+        pvalue_df[z, i] <- dunn_res_df$p.adj[k]
+    }
+}
+
+sig_df <- orderPvalue(mean_df$Group, mean_df$Value, 0.05, pvalue_df, console = TRUE)
+sig_df <- sig_df[stage[-1], ]
+
+tmp_df$Value <- log10(tmp_df$Value)
+ggplot(tmp_df, aes(x = Treatment, y = Value, color = Treatment)) +
+    geom_boxplot(width = 0.68, outlier.shape = NA) +
+    geom_point(size = 0.5) +
+    labs(x = '', y = 'Absolute abundance (log10copies g-1)') +
+    facet_grid(~ Stage, scales = 'free_x', switch = 'x') +
+    theme_bw() +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          legend.key.size = unit(0.25, 'cm'),
+          legend.position = 'none')
+```
+
+### 根表 (RS)
+
+```{r}
+#| label: rs-loads
+#| fig-cap: "根表微生物绝对丰度随时间变化"
+#| fig-width: 10
+#| fig-height: 5
+
+group_rs <- metadata[metadata$Compartment == 'RS', ]
+tmp_df <- merge(group_rs, absolute_df, by = 'row.names', all.x = TRUE)
+
+dunn_res <- dunn_test(tmp_df, Value ~ Stage, p.adjust.method = 'fdr')
+dunn_res_df <- data.frame(dunn_res[-1])
+
+mean_df <- aggregate(tmp_df['Value'], by = list(Group = tmp_df$Stage), FUN = mean)
+n <- nrow(mean_df)
+pvalue_df <- matrix(1, ncol = n, nrow = n)
+k <- 0
+for (i in 1:(n - 1)) {
+    for (z in (i + 1):n) {
+        k <- k + 1
+        pvalue_df[i, z] <- dunn_res_df$p.adj[k]
+        pvalue_df[z, i] <- dunn_res_df$p.adj[k]
+    }
+}
+
+sig_df <- orderPvalue(mean_df$Group, mean_df$Value, 0.05, pvalue_df, console = TRUE)
+sig_df <- sig_df[stage[-1], ]
+
+tmp_df$Value <- log10(tmp_df$Value)
+ggplot(tmp_df, aes(x = Treatment, y = Value, color = Treatment)) +
+    geom_boxplot(width = 0.68, outlier.shape = NA) +
+    geom_point(size = 0.5) +
+    labs(x = '', y = 'Absolute abundance (log10copies g-1)') +
+    facet_grid(~ Stage, scales = 'free_x', switch = 'x') +
+    theme_bw() +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          legend.key.size = unit(0.25, 'cm'),
+          legend.position = 'none')
+```

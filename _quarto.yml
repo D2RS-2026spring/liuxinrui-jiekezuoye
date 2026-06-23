@@ -1,0 +1,24 @@
+project:
+  type: book
+  output-dir: _book
+
+book:
+  title: "大豆土壤微生物群繁殖复现报告"
+  author: "刘心蕊"
+  date: "2026-06-23"
+  chapters:
+    - index.qmd
+    - composition.qmd
+    - diversity.qmd
+    - loads.qmd
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    code-fold: true
+    code-tools: true
+
+execute:
+  warning: false
+  message: false

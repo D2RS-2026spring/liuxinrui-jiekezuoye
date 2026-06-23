@@ -1,0 +1,234 @@
+---
+title: "群落组成分析"
+---
+
+## 门水平群落组成
+
+本章节分析不同处理和生长阶段下土壤微生物门水平的群落组成，包括相对丰度和绝对丰度。
+
+```{r}
+#| label: setup-composition
+#| message: false
+#| warning: false
+
+library(reshape2)
+library(ggplot2)
+```
+
+```{r}
+#| label: load-data
+#| message: false
+
+# define constants
+taxonomy <- c('Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species')
+color <- c('#e53525', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#2bffd5', '#f781bf', '#a65628', '#999999')
+treatment <- c('Ctrl', '-N', '-P', '-K')
+stage <- c('D0', 'D1', 'D4', 'D7', 'D14', 'D28', 'D42', 'D60', 'D72')
+
+# load data
+rmp_taxonomy_data <- read.csv('rmp_taxonomy_data.csv', check.names = FALSE)
+qmp_taxonomy_data <- read.csv('qmp_taxonomy_data.csv', check.names = FALSE)
+metadata <- read.csv('metadata.csv', row.names = 1)
+metadata$Treatment <- factor(metadata$Treatment, levels = treatment)
+metadata$Stage <- factor(metadata$Stage, levels = stage)
+metadata <- metadata[order(metadata$Stage, metadata$Treatment), ]
+```
+
+```{r}
+#| label: data-processing-function
+
+data_processing <- function(relative_df, absolute_df, group_df) {
+    relative_tmp_df <- relative_df
+    relative_tmp_df <- relative_tmp_df[rowSums(relative_tmp_df) > 0, ]
+    relative_tmp_df$Sum <- apply(relative_tmp_df, 1, sum)
+    relative_tmp_df <- relative_tmp_df[order(-relative_tmp_df$Sum), ]
+    relative_tmp_df <- relative_tmp_df[-ncol(relative_tmp_df)]
+
+    if ('unidentified' %in% row.names(relative_tmp_df)) {
+        unidentified_df <- relative_tmp_df['unidentified', ]
+        relative_tmp_df <- relative_tmp_df[row.names(relative_tmp_df) != 'unidentified', ]
+        relative_tmp_df <- rbind(relative_tmp_df, unidentified_df)
+    }
+
+    if (nrow(relative_tmp_df) <= 10) {
+        relative_top_df <- relative_tmp_df
+        absolute_top_df <- absolute_df[row.names(relative_top_df), ]
+        if ('unidentified' %in% row.names(relative_tmp_df)) {
+            row.names(relative_top_df)[nrow(relative_top_df)] <- 'Others'
+            row.names(absolute_top_df)[nrow(relative_top_df)] <- 'Others'
+            color_manual <- color[1:nrow(relative_top_df)]
+        } else {
+            color_manual <- color[1:(nrow(relative_top_df) + 1)]
+        }
+    } else {
+        relative_top_df <- relative_tmp_df[1:9, ]
+        relative_top_df[10, ] <- apply(relative_tmp_df[10:nrow(relative_tmp_df), ], 2, sum)
+        row.names(relative_top_df)[10] <- 'Others'
+        absolute_top_df <- absolute_df[row.names(relative_tmp_df)[1:9], ]
+        absolute_top_df[10, ] <- apply(absolute_df[row.names(relative_tmp_df)[10:nrow(relative_tmp_df)], ], 2, sum)
+        row.names(absolute_top_df)[10] <- 'Others'
+        color_manual <- color
+    }
+
+    relative_top_df$Taxonomy <- row.names(relative_top_df)
+    relative_top_df_melt <- melt(relative_top_df, id.vars = 'Taxonomy', variable.name = 'Sample', value.name = 'Value')
+    relative_fin_df <- merge(relative_top_df_melt, group_df, by.x = 'Sample', by.y = 'row.names', all.x = TRUE)
+    relative_fin_df$Taxonomy <- factor(relative_fin_df$Taxonomy, levels = relative_top_df$Taxonomy)
+
+    absolute_top_df$Taxonomy <- row.names(absolute_top_df)
+    absolute_top_df_melt <- melt(absolute_top_df, id.vars = 'Taxonomy', variable.name = 'Sample', value.name = 'Value')
+    absolute_fin_df <- merge(absolute_top_df_melt, group_df, by.x = 'Sample', by.y = 'row.names', all.x = TRUE)
+    absolute_fin_df$Taxonomy <- factor(absolute_fin_df$Taxonomy, levels = absolute_top_df$Taxonomy)
+
+    color_manual <- color_manual[1:nrow(relative_top_df)]
+    top_color <- data.frame(Taxonomy = relative_top_df$Taxonomy, Color = color_manual)
+
+    return(list(relative_fin_df, absolute_fin_df, color_manual, top_color))
+}
+```
+
+```{r}
+#| label: calculate-composition
+
+# aggregate by Phylum
+relative_df <- aggregate(rmp_taxonomy_data[!(names(rmp_taxonomy_data) %in% taxonomy)],
+                         by = list(Taxonomy = rmp_taxonomy_data[, 'Phylum']), sum)
+row.names(relative_df) <- relative_df$Taxonomy
+relative_df <- relative_df[-1]
+relative_df <- data.frame(apply(relative_df, 2, function(x) { x / sum(x) }), check.names = FALSE)
+
+absolute_df <- aggregate(qmp_taxonomy_data[!(names(qmp_taxonomy_data) %in% taxonomy)],
+                         by = list(Taxonomy = qmp_taxonomy_data[, 'Phylum']), sum)
+row.names(absolute_df) <- absolute_df$Taxonomy
+absolute_df <- absolute_df[-1]
+
+data_df <- data_processing(relative_df, absolute_df, metadata)
+relative_fin_df <- data_df[[1]]
+relative_fin_df$Sample <- factor(relative_fin_df$Sample, levels = row.names(metadata))
+absolute_fin_df <- data_df[[2]]
+absolute_fin_df$Sample <- factor(absolute_fin_df$Sample, levels = row.names(metadata))
+color_manual <- data_df[[3]]
+```
+
+### 相对丰度 — 散装土壤 (BS)
+
+```{r}
+#| label: bs-relative-barplot
+#| fig-cap: "散装土壤门水平相对丰度"
+#| fig-width: 4
+#| fig-height: 6
+
+tmp_df <- relative_fin_df[relative_fin_df$Compartment == 'BS', ]
+ggplot(tmp_df, aes(x = Sample, y = Value, fill = Taxonomy)) +
+    geom_bar(stat = 'identity', position = position_fill(reverse = TRUE), width = 1) +
+    labs(x = '', y = 'Relative abundance') +
+    scale_y_continuous(labels = scales::percent) +
+    facet_grid(~ Compartment, scales = 'free_x', switch = 'x') +
+    scale_fill_manual(values = color_manual) +
+    theme_bw() +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          legend.key.size = unit(0.3, 'cm'))
+```
+
+### 相对丰度 — 根际 (R)
+
+```{r}
+#| label: r-relative-barplot
+#| fig-cap: "根际门水平相对丰度"
+#| fig-width: 8
+#| fig-height: 6
+
+tmp_df <- relative_fin_df[relative_fin_df$Compartment == 'R', ]
+ggplot(tmp_df, aes(x = Sample, y = Value, fill = Taxonomy)) +
+    geom_bar(stat = 'identity', position = position_fill(reverse = TRUE), width = 1) +
+    labs(x = '', y = 'Relative abundance') +
+    scale_y_continuous(labels = scales::percent) +
+    facet_grid(~ Stage, scales = 'free_x', switch = 'x') +
+    scale_fill_manual(values = color_manual) +
+    theme_bw() +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          legend.key.size = unit(0.3, 'cm'))
+```
+
+### 相对丰度 — 根表 (RS)
+
+```{r}
+#| label: rs-relative-barplot
+#| fig-cap: "根表门水平相对丰度"
+#| fig-width: 8
+#| fig-height: 6
+
+tmp_df <- relative_fin_df[relative_fin_df$Compartment == 'RS', ]
+ggplot(tmp_df, aes(x = Sample, y = Value, fill = Taxonomy)) +
+    geom_bar(stat = 'identity', position = position_fill(reverse = TRUE), width = 1) +
+    labs(x = '', y = 'Relative abundance') +
+    scale_y_continuous(labels = scales::percent) +
+    facet_grid(~ Stage, scales = 'free_x', switch = 'x') +
+    scale_fill_manual(values = color_manual) +
+    theme_bw() +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          legend.key.size = unit(0.3, 'cm'))
+```
+
+### 绝对丰度 — 散装土壤 (BS)
+
+```{r}
+#| label: bs-absolute-barplot
+#| fig-cap: "散装土壤门水平绝对丰度"
+#| fig-width: 4
+#| fig-height: 5
+
+tmp_df <- absolute_fin_df[absolute_fin_df$Compartment == 'BS', ]
+ggplot(tmp_df, aes(x = Sample, y = Value, fill = Taxonomy)) +
+    geom_bar(stat = 'identity', position = position_stack(), width = 1) +
+    labs(x = '', y = 'Absolute abundance (log10copies g-1)') +
+    facet_grid(~ Compartment, scales = 'free_x', switch = 'x') +
+    scale_fill_manual(values = color_manual) +
+    theme_bw() +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          legend.key.size = unit(0.3, 'cm'))
+```
+
+### 绝对丰度 — 根际 (R)
+
+```{r}
+#| label: r-absolute-barplot
+#| fig-cap: "根际门水平绝对丰度"
+#| fig-width: 10
+#| fig-height: 6
+
+tmp_df <- absolute_fin_df[absolute_fin_df$Compartment == 'R', ]
+ggplot(tmp_df, aes(x = Sample, y = Value, fill = Taxonomy)) +
+    geom_bar(stat = 'identity', position = position_stack(), width = 1) +
+    labs(x = '', y = 'Absolute abundance (log10copies g-1)') +
+    facet_grid(~ Stage, scales = 'free_x', switch = 'x') +
+    scale_fill_manual(values = color_manual) +
+    theme_bw() +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          legend.key.size = unit(0.3, 'cm'))
+```
+
+### 绝对丰度 — 根表 (RS)
+
+```{r}
+#| label: rs-absolute-barplot
+#| fig-cap: "根表门水平绝对丰度"
+#| fig-width: 10
+#| fig-height: 6
+
+tmp_df <- absolute_fin_df[absolute_fin_df$Compartment == 'RS', ]
+ggplot(tmp_df, aes(x = Sample, y = Value, fill = Taxonomy)) +
+    geom_bar(stat = 'identity', position = position_stack(), width = 1) +
+    labs(x = '', y = 'Absolute abundance (log10copies g-1)') +
+    facet_grid(~ Stage, scales = 'free_x', switch = 'x') +
+    scale_fill_manual(values = color_manual) +
+    theme_bw() +
+    theme(axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          legend.key.size = unit(0.3, 'cm'))
+```
