@@ -4,7 +4,9 @@ title: "生物量分析"
 
 ## 微生物绝对丰度
 
-本章节分析不同处理和生长阶段下土壤微生物的总绝对丰度变化。
+本章节复现论文 Fig. 3A-C 的上半部分，分析不同处理和生长阶段下土壤微生物的总绝对丰度（QMP）变化。
+
+**分析方法**：将 ASV 水平的定量数据求和，得到每个样本的总细菌绝对丰度（copies/g），取 log10 后进行组间比较。使用 Dunn 检验进行非参数多重比较。
 
 ```{r}
 #| label: setup-loads
@@ -34,6 +36,8 @@ absolute_df <- data.frame(Value = colSums(qmp_taxonomy_data[!names(qmp_taxonomy_
 ```
 
 ### 散装土壤 (BS)
+
+Bulk Soil 的绝对菌量在各处理间差异相对有限，说明土壤背景微生物群落较为稳定，长期施肥处理未显著改变总菌量。
 
 ```{r}
 #| label: bs-loads
@@ -73,6 +77,8 @@ ggplot(tmp_df, aes(x = Treatment, y = Value, color = Treatment)) +
 ```
 
 ### 根际 (R)
+
+根际绝对菌量随发育阶段显著上升，尤其在 D28-D72 时期更为明显。这反映了根系生长和根系分泌物可能增强了微生物定殖。不同营养缺失处理改变了菌量的上升轨迹。
 
 ```{r}
 #| label: r-loads
@@ -116,6 +122,8 @@ ggplot(tmp_df, aes(x = Treatment, y = Value, color = Treatment)) +
 
 ### 根表 (RS)
 
+根表的绝对菌量变化模式与根际类似，但受宿主筛选作用更强，不同处理间的差异在后期更加明显。
+
 ```{r}
 #| label: rs-loads
 #| fig-cap: "根表微生物绝对丰度随时间变化"
@@ -155,3 +163,13 @@ ggplot(tmp_df, aes(x = Treatment, y = Value, color = Treatment)) +
           legend.key.size = unit(0.25, 'cm'),
           legend.position = 'none')
 ```
+
+### 结果解读
+
+| 生态位 | 绝对菌量趋势 | 处理间差异 |
+|--------|-------------|-----------|
+| **BS（散装土壤）** | 相对稳定 | 差异有限，土壤背景群落缓冲能力强 |
+| **R（根际）** | 随发育阶段显著上升 | 不同营养缺失改变了上升轨迹 |
+| **RS（根表）** | 后期上升更明显 | 宿主筛选作用下差异更显著 |
+
+**核心结论**：根系生长和根系分泌物驱动了根际和根内微生物的定殖，不平衡施肥通过改变菌群组成和菌量轨迹影响大豆-微生物互作。

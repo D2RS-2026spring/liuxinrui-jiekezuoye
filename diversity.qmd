@@ -4,7 +4,9 @@ title: "多样性分析"
 
 ## Alpha 和 Beta 多样性
 
-本章节分析不同处理下土壤微生物群落的 alpha 多样性（Shannon 指数）和 beta 多样性（PCoA）。
+本章节复现论文 Fig. 2A-F，分析不同处理下土壤微生物群落的 alpha 多样性（Shannon 指数）和 beta 多样性（Bray-Curtis PCoA）。
+
+**核心发现**：根相关微生物群落不是静态结构，而是随大豆发育阶段明显变化。
 
 ```{r}
 #| label: setup-diversity
@@ -34,6 +36,8 @@ shannon <- data.frame(Shannon = diversity(as.data.frame(t(qmp_data)), index = 's
 ```
 
 ### Alpha 多样性 — 散装土壤 (BS)
+
+Bulk Soil 的 Shannon 指数在各处理间差异较弱（论文标注为 n.s.），说明长期施肥处理对总土壤多样性并非简单线性改变。
 
 ```{r}
 #| label: bs-alpha
@@ -76,6 +80,8 @@ ggplot(shannon_df, aes(x = Treatment, y = Shannon, color = Treatment)) +
 
 ### Alpha 多样性 — 根际 (R)
 
+根际 Shannon 指数随时间出现阶段性波动，说明植物发育过程会持续重塑根际细菌多样性。不同处理间的差异反映了不平衡施肥对根际微生物的影响。
+
 ```{r}
 #| label: r-alpha
 #| fig-cap: "根际 Shannon 指数随时间变化"
@@ -97,6 +103,8 @@ ggplot(df_r_summary, aes(x = Day, y = Shannon, fill = Treatment, color = Treatme
 
 ### Alpha 多样性 — 根表 (RS)
 
+根表（Root Endosphere）的 Shannon 指数波动幅度更大，反映根内微生物群落受到更强的宿主筛选和阶段性选择压力。
+
 ```{r}
 #| label: rs-alpha
 #| fig-cap: "根表 Shannon 指数随时间变化"
@@ -117,6 +125,8 @@ ggplot(df_rs_summary, aes(x = Day, y = Shannon, fill = Treatment, color = Treatm
 ```
 
 ### Beta 多样性 — 散装土壤 (BS)
+
+PCoA 基于 Bray-Curtis 距离，展示样本间群落结构的差异。PERMANOVA 检验 Treatment 的解释度（R²）。
 
 ```{r}
 #| label: bs-beta
@@ -151,6 +161,8 @@ ggplot(points, aes(x = PCoA1, y = PCoA2, shape = Treatment, color = Treatment)) 
 
 ### Beta 多样性 — 根际 (R)
 
+根际 PCoA 中不同 Stage 和 Treatment 的分离表明，发育阶段和施肥处理共同影响群落结构。R² 值反映了各因素对群落变异的解释程度。
+
 ```{r}
 #| label: r-beta
 #| fig-cap: "根际 PCoA 分析"
@@ -181,6 +193,8 @@ ggplot(points, aes(x = PCoA1, y = PCoA2, shape = Treatment, color = Stage)) +
 
 ### Beta 多样性 — 根表 (RS)
 
+根表的 PCoA 呈现明显的发育轨迹，说明进入根内的菌群受到更强的宿主筛选和阶段性选择。
+
 ```{r}
 #| label: rs-beta
 #| fig-cap: "根表 PCoA 分析"
@@ -208,3 +222,13 @@ ggplot(points, aes(x = PCoA1, y = PCoA2, shape = Treatment, color = Stage)) +
     scale_color_manual(values = c('#00512c', '#00a04b', '#84d775', '#c2ebba', '#ffc680', '#ff8c00', '#f34a00', '#e60700')) +
     theme_bw()
 ```
+
+### 结果解读
+
+| 生态位 | Alpha 多样性 | Beta 多样性 |
+|--------|-------------|-------------|
+| **BS（散装土壤）** | 处理间差异弱（n.s.），土壤背景群落稳定 | Treatment R² 较低 |
+| **R（根际）** | 随时间阶段性波动 | Stage 和 Treatment R² 均较高 |
+| **RS（根表）** | 波动幅度更大，宿主筛选作用强 | 明显发育轨迹 |
+
+**核心结论**：根相关微生物群落随大豆发育阶段动态变化，不平衡施肥重塑了根际和根内微生物群落结构。

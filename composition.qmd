@@ -4,7 +4,9 @@ title: "群落组成分析"
 
 ## 门水平群落组成
 
-本章节分析不同处理和生长阶段下土壤微生物门水平的群落组成，包括相对丰度和绝对丰度。
+本章节复现论文 Fig. 3 的下半部分，展示不同处理和生长阶段下土壤微生物门水平的群落组成。
+
+**分析方法**：将 ASV 水平的数据按 Phylum（门）聚合，计算每个门的相对丰度和绝对丰度（QMP），取 Top 9 门展示，其余归为 "Others"。
 
 ```{r}
 #| label: setup-composition
@@ -112,6 +114,8 @@ color_manual <- data_df[[3]]
 
 ### 相对丰度 — 散装土壤 (BS)
 
+Bulk Soil 的群落组成相对稳定，不同施肥处理间差异有限，说明土壤背景微生物群落具有较强的缓冲能力。
+
 ```{r}
 #| label: bs-relative-barplot
 #| fig-cap: "散装土壤门水平相对丰度"
@@ -133,6 +137,8 @@ ggplot(tmp_df, aes(x = Sample, y = Value, fill = Taxonomy)) +
 
 ### 相对丰度 — 根际 (R)
 
+根际微生物群落随大豆发育阶段发生明显变化，Proteobacteria、Actinobacteria、Firmicutes 等门类的占比在不同生长期呈现系统性波动。
+
 ```{r}
 #| label: r-relative-barplot
 #| fig-cap: "根际门水平相对丰度"
@@ -153,6 +159,8 @@ ggplot(tmp_df, aes(x = Sample, y = Value, fill = Taxonomy)) +
 ```
 
 ### 相对丰度 — 根表 (RS)
+
+根表（Root Endosphere）群落受宿主筛选作用更强，发育轨迹更加明显，后期样本中特定门类占比显著变化。
 
 ```{r}
 #| label: rs-relative-barplot
@@ -195,6 +203,8 @@ ggplot(tmp_df, aes(x = Sample, y = Value, fill = Taxonomy)) +
 
 ### 绝对丰度 — 根际 (R)
 
+根际绝对菌量随发育阶段上升，反映根系生长和根系分泌物可能增强微生物定殖。
+
 ```{r}
 #| label: r-absolute-barplot
 #| fig-cap: "根际门水平绝对丰度"
@@ -232,3 +242,9 @@ ggplot(tmp_df, aes(x = Sample, y = Value, fill = Taxonomy)) +
           axis.ticks.x = element_blank(),
           legend.key.size = unit(0.3, 'cm'))
 ```
+
+### 结果解读
+
+- **仅看相对丰度容易误判群落变化**，因此论文引入 QMP 的绝对丰度信息
+- 绝对菌量随发育阶段上升，尤其在后期根际和根内样本中更明显
+- 不同营养缺失处理改变了菌群组成和菌量轨迹，支持论文关于**不平衡施肥重塑根相关微生物群落**的结论
